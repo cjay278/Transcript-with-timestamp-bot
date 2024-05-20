@@ -1,0 +1,121 @@
+import assemblyai as aai
+import sys
+
+def transcribe_file(file_path):
+    #e64bfb72beb441da9c0d4d37e7c6287a
+    aai.settings.api_key = "<e64bfb72beb441da9c0d4d37e7c6287a>"
+
+    # Initialize the transcriber
+    transcriber = aai.Transcriber()
+
+    # Transcribe the local file with speaker labels enabled
+    transcript = transcriber.transcribe(file_path, speaker_labels=True)
+
+    # Check for errors in the transcription process
+    if transcript.status == aai.TranscriptStatus.error:
+        print("Error:", transcript.error)
+        return
+
+    # Print the transcription with timestamps and speaker labels
+    for word in transcript.words:
+        start_time = word.start / 1000  # Convert milliseconds to seconds
+        end_time = word.end / 1000  # Convert milliseconds to seconds
+        speaker = word.speaker
+        text = word.text
+        print(f"[{start_time:.2f} - {end_time:.2f}] Speaker {speaker}: {text}")
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python transcribe_mp4.py <path_to_mp4_file>")
+    else:
+        file_path = sys.argv[1]
+        transcribe_file(file_path)
+import os
+import io
+import sys
+from google.cloud import speech
+from pydub import AudioSegment
+
+def extract_audio_from_mp4(mp4_file_path, audio_file_path):
+    audio = AudioSegment.from_file(mp4_file_path, "mp4")
+    audio.export(audio_file_path, format="wav")
+
+def transcribe_audio(audio_file_path):
+    client = speech.SpeechClient()
+
+    with io.open(audio_file_path, "rb") as audio_file:
+        content = audio_file.read()
+
+    audio = speech.RecognitionAudio(content=content)
+
+    config = speech.RecognitionConfig(
+        encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
+        sample_rate_hertz=16000,
+        language_code="en-US",
+        enable_speaker_diarization=True,
+        diarization_speaker_count=2,
+    )
+
+    operation = client.long_running_recognize(config=config, audio=audio)
+    response = operation.result(timeout=90)
+
+    result = response.results[-1]
+    words_info = result.alternatives[0].words
+
+    for word_info in words_info:
+        print(
+            f"Word: '{word_info.word}', Speaker Tag: {word_info.speaker_tag}, "
+            f"Start Time: {word_info.start_time.total_seconds()}, "
+            f"End Time: {word_info.end_time.total_seconds()}"
+        )
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python transcribe_mp4.py <path_to_mp4_file>")
+    else:
+        mp4_file_path = sys.argv[1]
+        audio_file_path = "extracted_audio.wav"
+        
+        extract_audio_from_mp4(mp4_file_path, audio_file_path)
+        transcribe_audio(audio_file_path)
+
+        # Clean up the temporary audio file
+        os.remove(audio_file_path)
+Instructions for GitHub
+Create a New Repository on GitHub: Go to GitHub and create a new repository (e.g., mp4-transcriber-google-cloud).
+
+Clone the Repository Locally:
+
+bash
+Copy code
+git clone https://github.com/your-username/mp4-transcriber-google-cloud.git
+cd mp4-transcriber-google-cloud
+Add the Python Script to the Repository:
+
+Save the transcribe_mp4.py script in the repository directory.
+Create a README.md File:
+
+markdown
+Copy code
+# MP4 Transcriber using Google Cloud Speech-to-Text
+
+This script uses Google Cloud Speech-to-Text API to transcribe .mp4 files, providing timestamps and speaker labels.
+
+## Prerequisites
+
+1. Google Cloud account with Speech-to-Text API enabled.
+2. Google Cloud SDK installed and authenticated.
+3. `ffmpeg` installed to extract audio from MP4 files.
+4. Install required Python packages:
+   ```bash
+   pip install google-cloud-speech pydub
+   ```
+
+## Usage
+
+1. Run the script:
+   ```bash
+   python transcribe_mp4.py <path_to_mp4_file>
+   ```
+
+Replace `<path_to_mp4_file>` with the path to your .mp4 file.
